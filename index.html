@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Syndicate Org Chart</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network@latest/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+        #mynetwork {
+            width: 100vw;
+            height: calc(100vh - 50px);
+            border: 1px solid lightgray;
+            background-color: white;
+        }
+        #resetButton {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1000;
+        }
+        #resetButton:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <button id="resetButton" onclick="resetView()">Reset View</button>
+    <div id="mynetwork"></div>
+
+    <script type="text/javascript">
+        // Define syndicate members as nodes with sizes based on hierarchy
+        var nodes = new vis.DataSet([
+            {id: 1, label: 'Zaldy Co', shape: 'circle', color: '#FF6347', size: 30}, // Level 1
+            {id: 2, label: 'Martin Romualdez', shape: 'circle', color: '#FFD700', size: 25}, // Level 2
+            {id: 3, label: 'Roberto Bernardo', shape: 'circle', color: '#FFD700', size: 25}, // Level 2
+            {id: 4, label: 'Francis Escudero', shape: 'circle', color: '#87CEEB', size: 20}, // Level 3
+            {id: 5, label: 'Nancy Binay', shape: 'circle', color: '#87CEEB', size: 20}, // Level 3
+            {id: 6, label: 'Ramon Revilla', shape: 'circle', color: '#87CEEB', size: 20}, // Level 3
+            {id: 7, label: 'Henry Alcantara', shape: 'circle', color: '#90EE90', size: 15}, // Level 4
+            {id: 8, label: 'Brice Hernandez', shape: 'circle', color: '#98FB98', size: 10}, // Level 5
+            {id: 9, label: 'Jaypee Mendoza', shape: 'circle', color: '#98FB98', size: 10}, // Level 5
+            {id: 10, label: 'Orly Regala Guteza', shape: 'circle', color: '#ADD8E6', size: 15} // Level 4
+        ]);
+
+        // Define connections (edges) between members
+        var edges = new vis.DataSet([
+            {from: 1, to: 2, arrows: 'to', color: '#808080'}, // Co to Romualdez (label removed)
+            {from: 1, to: 3, arrows: 'none', color: '#808080', dashes: true}, // Co and Bernardo linked
+            {from: 3, to: 4, arrows: 'to', color: '#808080'}, // Bernardo to Escudero
+            {from: 3, to: 5, arrows: 'to', color: '#808080'}, // Bernardo to Binay
+            {from: 3, to: 6, arrows: 'to', color: '#808080'}, // Bernardo to Revilla
+            {from: 7, to: 3, arrows: 'to', color: '#808080'}, // Alcantara to Bernardo
+            {from: 8, to: 7, arrows: 'to', color: '#808080'}, // Hernandez to Alcantara
+            {from: 9, to: 7, arrows: 'to', color: '#808080'}, // Mendoza to Alcantara
+            {from: 10, to: 1, arrows: 'to', color: '#808080'} // Guteza to Co
+        ]);
+
+        // Create the network container
+        var container = document.getElementById('mynetwork');
+        var data = {
+            nodes: nodes,
+            edges: edges
+        };
+
+        // Options for spider web style with non-overlapping nodes, straight edges, and slow continuous motion
+        var options = {
+            nodes: {
+                font: {
+                    size: 16,
+                    face: 'Arial'
+                },
+                borderWidth: 2,
+                margin: 10
+            },
+            edges: {
+                smooth: {
+                    enabled: false
+                },
+                width: 2,
+                font: {
+                    size: 12,
+                    align: 'middle'
+                }
+            },
+            physics: {
+                enabled: true,
+                forceAtlas2Based: {
+                    gravitationalConstant: -100,
+                    centralGravity: 0.005,
+                    springLength: 150,
+                    springConstant: 0.05,
+                    avoidOverlap: 1.0
+                },
+                solver: 'forceAtlas2Based',
+                timestep: 0.2,
+                stabilization: {
+                    iterations: 1000,
+                    updateInterval: 50
+                }
+            },
+            interaction: {
+                dragNodes: true,
+                dragView: true,
+                zoomView: true,
+                navigationButtons: false,
+                zoomSpeed: 0.1
+            },
+            layout: {
+                improvedLayout: true
+            }
+        };
+
+        // Initialize the network
+        var network = new vis.Network(container, data, options);
+
+        // Center node 1 (Zaldy Co) after stabilization and set initial view
+        network.on("stabilizationIterationsDone", function () {
+            network.moveNode(1, 0, 0);  // Move node 1 to center
+            network.moveTo({
+                position: { x: 0, y: 0 },
+                scale: 1.0
+            });
+        });
+
+        // Custom mouse wheel event listener for zooming
+        container.addEventListener('wheel', function (event) {
+            event.preventDefault();  // Prevent browser scroll
+            const scale = network.getScale();
+            const zoomFactor = event.deltaY < 0 ? 1.1 : 0.9;  // Zoom in (up) or out (down)
+            const newScale = Math.min(Math.max(scale * zoomFactor, 0.1), 2.0);  // Respect min/max zoom
+            const viewPosition = network.getViewPosition();
+            const mousePos = network.DOMtoCanvas({ x: event.offsetX, y: event.offsetY });
+
+            // Zoom towards mouse pointer
+            network.moveTo({
+                scale: newScale,
+                position: {
+                    x: viewPosition.x + (mousePos.x - viewPosition.x) * (1 - zoomFactor),
+                    y: viewPosition.y + (mousePos.y - viewPosition.y) * (1 - zoomFactor)
+                }
+            });
+        }, { passive: false });
+
+        // Reset view function
+        function resetView() {
+            network.moveNode(1, 0, 0);  // Move node 1 (Zaldy Co) to center
+            network.moveTo({
+                position: { x: 0, y: 0 },
+                scale: 1.0
+            });
+        }
+    </script>
+</body>
+</html>
